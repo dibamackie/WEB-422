@@ -1,42 +1,29 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
-
 const MoviesDB = require('./modules/moviesDB');
 
 const app = express();
 const db = new MoviesDB();
 
-let isConnected = false; // Track the connection status for MongoDB
+// Connect to MongoDB
+db.initialize(process.env.MONGODB_CONN_STRING)
+    .then(() => console.log("Successfully connected to MongoDB"))
+    .catch(err => {
+        console.log(`Error: ${err}`);
+        process.exit(1);
+    });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: [
+        'https://your-vercel-domain.vercel.app',
+        'http://localhost:8080'
+    ],
+    optionsSuccessStatus: 200
+}));
 app.use(express.json());
 app.use(express.static('public'));
-
-// Connect to MongoDB
-async function connectToDB() {
-    if (!isConnected) {
-        try {
-            await mongoose.connect(process.env.MONGODB_CONN_STRING, {
-                useNewUrlParser: true,
-                useUnifiedTopology: true,
-            });
-            isConnected = true;
-            console.log("Successfully connected to MongoDB");
-        } catch (err) {
-            console.error(`Error: ${err}`);
-            process.exit(1);
-        }
-    }
-}
-
-// Middleware to ensure MongoDB connection
-app.use(async (req, res, next) => {
-    await connectToDB();
-    next();
-});
 
 // API Routes
 app.get('/api/movies', async (req, res) => {
