@@ -1,81 +1,69 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-let isConnected = false; // Track the connection status
-
-const MovieSchema = new mongoose.Schema({
-    title: String,
-    year: Number,
-    rated: String,
-    released: Date,
-    runtime: Number,
-    genres: [String],
-    directors: [String],
-    writers: [String],
-    actors: [String],
-    plot: String,
-    poster: String,
-    imdb: {
-        rating: Number,
-        votes: Number
-    },
-    awards: {
-        wins: Number,
-        nominations: Number,
-        text: String
-    }
-}, { collection: 'movies' }); // Explicitly define the collection name as 'movies'
-
-const Movie = mongoose.model('Movie', MovieSchema);
+let Movie;
 
 class MoviesDB {
-    constructor() {
-        this.Movie = Movie;
-    }
-
-    async initialize(connectionString) {
-        if (!isConnected) {
-            try {
-                await mongoose.connect(connectionString, {
-                    useNewUrlParser: true,
-                    useUnifiedTopology: true
-                });
-                isConnected = true;
-                console.log('Connected to MongoDB: sample_mflix database.');
-            } catch (err) {
-                console.error('Error connecting to MongoDB:', err);
-                throw err;
+  initialize(connectionString) {
+    return new Promise((resolve, reject) => {
+      mongoose.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true })
+        .then(() => {
+          const movieSchema = new mongoose.Schema({
+            plot: String,
+            genres: [String],
+            runtime: Number,
+            cast: [String],
+            poster: String,
+            title: String,
+            fullplot: String,
+            languages: [String],
+            released: Date,
+            directors: [String],
+            rated: String,
+            awards: {
+              wins: Number,
+              nominations: Number,
+              text: String,
+            },
+            imdb: {
+              rating: Number,
+              votes: Number,
+              id: Number,
             }
-        }
-    }
+          });
 
-    async addNewMovie(data) {
-        const newMovie = new Movie(data);
-        return await newMovie.save();
-    }
+          // Define the model using the "movies" collection in the "sample_mflix" database
+          Movie = mongoose.model("movies", movieSchema);
+          resolve();
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    });
+  }
 
-    async getAllMovies(page, perPage, title) {
-        let query = {};
-        if (title) {
-            query.title = new RegExp(title, 'i'); // Case-insensitive search by title
-        }
+  getAllMovies(page, perPage, title) {
+    const query = title ? { title: new RegExp(title, "i") } : {};
+    return Movie.find(query)
+      .skip((page - 1) * perPage)
+      .limit(perPage)
+      .exec();
+  }
 
-        return await Movie.find(query)
-            .skip((page - 1) * perPage)
-            .limit(perPage)
-            .exec();
-    }
+  getMovieById(id) {
+    return Movie.findById(id).exec();
+  }
 
-    async getMovieById(id) {
-        return await Movie.findById(id).exec();
-    }
+  addNewMovie(data) {
+    return Movie.create(data);
+  }
 
-    async updateMovieById(data, id) {
-        return await Movie.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
-    }
+  updateMovieById(data, id) {
+    return Movie.findByIdAndUpdate(id, data, { new: true }).exec();
+  }
 
-    async deleteMovieById(id) {
-        return await Movie.findByIdAndDelete(id).exec();
-    }
+  deleteMovieById(id) {
+    return Movie.findByIdAndDelete(id).exec();
+  }
 }
 
 module.exports = MoviesDB;
